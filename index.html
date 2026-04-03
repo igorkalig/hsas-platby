@@ -1,0 +1,685 @@
+<!-- v4 – 2026-04-02 – oprava zobrazenia dátumu pri starom localStorage cache --><!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Evidencia Platieb</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0f1117; color: #f0f0f0; font-family: Arial, sans-serif; padding: 1.5rem; min-height: 100vh; }
+    .wrap { max-width: 700px; margin: 0 auto; }
+    h1 { font-size: 1.6rem; font-weight: 700; color: #e8b84b; }
+    .sub { color: rgba(255,255,255,0.4); font-size: 0.85rem; margin-top: 0.25rem; margin-bottom: 0.5rem; }
+    .sync-status { font-size: 0.75rem; color: rgba(255,255,255,0.3); margin-bottom: 1rem; min-height: 1rem; }
+    .card { background: #1a1d27; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.25rem; border: 1px solid rgba(232,184,75,0.15); }
+    label { font-size: 0.8rem; color: rgba(255,255,255,0.5); display: block; margin-bottom: 4px; }
+    input, select { width: 100%; background: #0f1117; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.6rem 0.9rem; color: #f0f0f0; font-size: 0.95rem; outline: none; margin-bottom: 0.75rem; }
+    input:focus, select:focus { border-color: rgba(232,184,75,0.5); }
+    input::placeholder { color: rgba(255,255,255,0.25); }
+    .btn-primary { width: 100%; background: #e8b84b; color: #0f1117; border: none; border-radius: 8px; padding: 0.75rem; font-weight: 700; font-size: 1rem; cursor: pointer; transition: opacity .15s; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:active { opacity: 0.8; }
+    .btn-outline { background: transparent; border: 1px solid #4b9fe8; color: #4b9fe8; border-radius: 8px; padding: 0.5rem 1rem; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+    .btn-ghost { background: transparent; border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.4); border-radius: 8px; padding: 0.5rem 1rem; font-size: 0.85rem; cursor: pointer; }
+    .flash { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 8px; }
+    .flash.ok  { color: #4be87a; background: rgba(75,232,122,0.08); }
+    .flash.err { color: #e84b6a; background: rgba(232,75,106,0.08); }
+    .hidden { display: none !important; }
+    /* Row */
+    .row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .total { margin-left: auto; color: #e8b84b; font-weight: 700; font-size: 1rem; }
+    /* Filter */
+    .filter-wrap { position: relative; margin-bottom: 0.75rem; }
+    .filter-wrap input { margin-bottom: 0; }
+    .clear-btn { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: rgba(255,255,255,0.4); cursor: pointer; font-size: 1rem; }
+    /* Súhrn */
+    .suhrn-toggle { width: 100%; background: transparent; border: none; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; color: #f0f0f0; font-weight: 700; font-size: 0.95rem; }
+    .suhrn-toggle span { color: rgba(255,255,255,0.4); font-size: 0.85rem; font-weight: 400; }
+    .suhrn-item { display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .suhrn-item .name { font-weight: 600; font-size: 0.9rem; }
+    .suhrn-item .count { font-size: 0.75rem; color: rgba(255,255,255,0.35); }
+    .suhrn-item .amt { color: #e8b84b; font-weight: 700; }
+    .suhrn-total { display: flex; justify-content: space-between; padding: 0.75rem 1.25rem; background: rgba(232,184,75,0.06); font-weight: 700; color: rgba(255,255,255,0.6); font-size: 0.85rem; }
+    .suhrn-total span { color: #e8b84b; font-weight: 800; }
+    /* Tabuľka */
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { padding: 0.7rem 1rem; text-align: left; color: rgba(255,255,255,0.5); font-weight: 600; font-size: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(232,184,75,0.08); }
+    td { padding: 0.65rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+    .td-name { font-weight: 600; }
+    .td-date { color: rgba(255,255,255,0.5); white-space: nowrap; }
+    .td-suma { color: #e8b84b; font-weight: 700; white-space: nowrap; }
+    .td-note { color: rgba(255,255,255,0.4); font-size: 0.82rem; }
+    .del-btn { background: transparent; border: none; color: rgba(232,75,106,0.5); cursor: pointer; font-size: 1rem; padding: 0.25rem; transition: color .15s; }
+    .del-btn:hover { color: #e84b6a; }
+    tfoot td { padding: 0.7rem 1rem; background: rgba(232,184,75,0.06); font-weight: 700; color: rgba(255,255,255,0.6); font-size: 0.85rem; }
+    tfoot .tf-suma { color: #e8b84b; font-weight: 800; font-size: 1rem; }
+    .empty { padding: 2.5rem; text-align: center; color: rgba(255,255,255,0.25); font-size: 0.9rem; }
+    /* Autocomplete */
+    .autocomplete { position: absolute; top: 100%; left: 0; right: 0; background: #1e2235; border: 1px solid rgba(232,184,75,0.3); border-radius: 8px; z-index: 10; margin-top: 2px; overflow: hidden; }
+    .ac-item { padding: 0.55rem 0.9rem; cursor: pointer; font-size: 0.9rem; }
+    .ac-item:hover, .ac-item.active { background: rgba(232,184,75,0.15); color: #e8b84b; }
+    .meno-wrap { position: relative; }
+    /* Modal */
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+    .modal { background: #1a1d27; border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 560px; border: 1px solid rgba(232,184,75,0.25); }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .modal-head h3 { color: #e8b84b; font-size: 1rem; }
+    .modal-close { background: transparent; border: none; color: rgba(255,255,255,0.4); font-size: 1.2rem; cursor: pointer; }
+    .modal p { font-size: 0.8rem; color: rgba(255,255,255,0.35); margin-bottom: 0.75rem; }
+    textarea { width: 100%; height: 180px; background: #0f1117; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 0.75rem; color: #a0c4ff; font-size: 0.78rem; font-family: monospace; resize: none; }
+    .modal-btns { display: flex; gap: 0.75rem; margin-top: 1rem; }
+    .btn-copy { flex: 1; background: #e8b84b; color: #0f1117; border: none; border-radius: 8px; padding: 0.65rem; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
+    .btn-copy.ok { background: #4be87a; }
+    .border-t { border-top: 1px solid rgba(255,255,255,0.06); }
+    select { cursor: pointer; -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.3)'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.9rem center; padding-right: 2rem; }
+    /* Typ platby */
+    .typ-group { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .typ-btn { flex: 1; min-width: 70px; background: #0f1117; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.55rem 0.4rem; color: rgba(255,255,255,0.4); font-size: 0.82rem; cursor: pointer; text-align: center; transition: all .15s; }
+    .typ-btn.active-zaloha  { background: rgba(232,184,75,0.15);  border-color: #e8b84b; color: #e8b84b; font-weight: 700; }
+    .typ-btn.active-vyplata { background: rgba(75,232,122,0.15);  border-color: #4be87a; color: #4be87a; font-weight: 700; }
+    .typ-btn.active-ukol    { background: rgba(75,158,232,0.15);  border-color: #4b9fe8; color: #4b9fe8; font-weight: 700; }
+    .typ-btn.active-ine     { background: rgba(200,150,232,0.15); border-color: #c896e8; color: #c896e8; font-weight: 700; }
+    .badge { display: inline-block; font-size: 0.7rem; font-weight: 700; border-radius: 5px; padding: 0.15rem 0.45rem; white-space: nowrap; }
+    .badge-zaloha  { background: rgba(232,184,75,0.15);  color: #e8b84b; }
+    .badge-vyplata { background: rgba(75,232,122,0.15);  color: #4be87a; }
+    .badge-ukol    { background: rgba(75,158,232,0.15);  color: #4b9fe8; }
+    .badge-ine     { background: rgba(200,150,232,0.15); color: #c896e8; }
+    /* Stavba */
+    .volba-group { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .volba-btn { background: #0f1117; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.4rem 0.75rem; color: rgba(255,255,255,0.4); font-size: 0.82rem; cursor: pointer; transition: all .15s; }
+    .volba-btn.active { background: rgba(75,158,232,0.15); border-color: #4b9fe8; color: #4b9fe8; font-weight: 700; }
+    /* Filter typ */
+    .filter-typ-group { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .filter-typ-btn { background: #0f1117; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 0.3rem 0.75rem; color: rgba(255,255,255,0.35); font-size: 0.78rem; cursor: pointer; transition: all .15s; }
+    .filter-typ-btn.active { border-color: #e8b84b; color: #e8b84b; background: rgba(232,184,75,0.08); font-weight: 600; }
+    /* Spinner */
+    .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.2); border-top-color: #e8b84b; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 4px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 480px) {
+      body { padding: 1rem 0.75rem; }
+      .wrap { max-width: 100%; }
+      th, td { padding: 0.55rem 0.6rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>💳 Evidencia Platieb</h1>
+  <p class="sub" id="mesiac-label"></p>
+  <div class="sync-status" id="sync-status"></div>
+
+  <!-- Formulár -->
+  <div class="card">
+    <div class="meno-wrap">
+      <label>Meno zamestnanca *</label>
+      <input type="text" id="inp-meno" placeholder="Začni písať meno..." autocomplete="off" />
+      <div class="autocomplete hidden" id="autocomplete"></div>
+    </div>
+
+    <label>Suma (€) *</label>
+    <input type="number" id="inp-suma" placeholder="napr. 150" min="0" step="0.01" />
+
+    <label>Poznámka <span style="color:rgba(255,255,255,0.25)">(nepovinné)</span></label>
+    <input type="text" id="inp-poznamka" placeholder="napr. na materiál" />
+
+    <label>Typ platby</label>
+    <div class="typ-group">
+      <button type="button" class="typ-btn active-zaloha" id="typ-zaloha" onclick="vyberTyp('zaloha')">💰 Záloha</button>
+      <button type="button" class="typ-btn" id="typ-vyplata" onclick="vyberTyp('vyplata')">💵 Výplata</button>
+      <button type="button" class="typ-btn" id="typ-ukol" onclick="vyberTyp('ukol')">✅ Úkol</button>
+      <button type="button" class="typ-btn" id="typ-ine" onclick="vyberTyp('ine')">📌 Iné</button>
+    </div>
+
+    <label>Stavba <span style="color:rgba(255,255,255,0.25)">(nepovinné)</span></label>
+    <div class="volba-group" id="stavba-group">
+      <span style="font-size:0.78rem;color:rgba(255,255,255,0.2);">Načítavam...</span>
+    </div>
+
+    <p style="font-size:0.8rem;color:rgba(255,255,255,0.35);margin-bottom:0.75rem;">
+      📅 Dátum: <span id="dnes-label"></span> (automaticky)
+    </p>
+    <div class="flash hidden" id="flash"></div>
+    <button class="btn-primary" onclick="pridaj()">+ Pridať platbu</button>
+  </div>
+
+  <!-- Súhrn -->
+  <div class="card hidden" style="padding:0;" id="suhrn-card">
+    <button class="suhrn-toggle" onclick="toggleSuhrn()">
+      👥 Súhrn za zamestnancov <span id="suhrn-toggle-lbl">▼ zobraziť</span>
+    </button>
+    <div class="hidden border-t" id="suhrn-body"></div>
+  </div>
+
+  <!-- Mesiac + tlačidlá -->
+  <div class="row">
+    <select id="sel-mesiac" onchange="zmenMesiac()"></select>
+    <button class="btn-outline" onclick="exportCSV()">📋 CSV</button>
+    <button class="btn-outline" onclick="loadFromSheets()" id="btn-load" style="border-color:#c896e8;color:#c896e8;">📥 Načítať</button>
+    <span class="total" id="total-lbl">0.00 €</span>
+  </div>
+
+  <!-- Filter typ -->
+  <div class="filter-typ-group">
+    <button class="filter-typ-btn active" onclick="vyberFilterTyp('vsetky', this)">Všetky</button>
+    <button class="filter-typ-btn" onclick="vyberFilterTyp('zaloha', this)">💰 Záloha</button>
+    <button class="filter-typ-btn" onclick="vyberFilterTyp('vyplata', this)">💵 Výplata</button>
+    <button class="filter-typ-btn" onclick="vyberFilterTyp('ukol', this)">✅ Úkol</button>
+    <button class="filter-typ-btn" onclick="vyberFilterTyp('ine', this)">📌 Iné</button>
+  </div>
+
+  <!-- Filter meno -->
+  <div class="filter-wrap">
+    <input type="text" id="inp-filter" placeholder="🔍 Filter podľa mena..." oninput="renderTabulka()" />
+    <button class="clear-btn hidden" id="clear-filter" onclick="clearFilter()">✕</button>
+  </div>
+
+  <!-- Tabuľka -->
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div class="empty" id="empty-msg">Žiadne zálohy</div>
+    <table class="hidden" id="tabulka">
+      <thead>
+        <tr>
+          <th>Meno</th>
+          <th>Dátum</th>
+          <th>Suma</th>
+          <th>Typ</th>
+          <th>Stavba</th>
+          <th>Poznámka</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2" id="tf-label">CELKOVÁ SUMA</td>
+          <td class="tf-suma" id="tf-suma"></td>
+          <td colspan="4"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <p style="font-size:0.72rem;color:rgba(255,255,255,0.15);text-align:center;margin-top:1rem;">
+    HSAS Evidencia Záloh · Dáta uložené v Google Sheets
+  </p>
+</div>
+
+<!-- CSV Modal -->
+<div class="modal-bg hidden" id="csv-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>📋 CSV export</h3>
+      <button class="modal-close" onclick="zavriModal()">✕</button>
+    </div>
+    <p>Skopíruj obsah → vlož do nového súboru → ulož ako <strong style="color:rgba(255,255,255,0.6)">Zalohy.csv</strong></p>
+    <textarea id="csv-area" readonly onclick="this.select()"></textarea>
+    <div class="modal-btns">
+      <button class="btn-copy" id="btn-copy" onclick="skopiruj()">📋 Kopírovať do schránky</button>
+      <button class="btn-ghost" onclick="zavriModal()">Zavrieť</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Konfigurácia ────────────────────────────────────────────────────────────
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbzzc0VpqZ1DXHxPln9_LNDPGO764jCHrN8Y0CNvGInxnHBYmY6Z3DNiYt788dfyDuXM/exec";
+
+const MESICE = ["Január","Február","Marec","Apríl","Máj","Jún",
+                "Júl","August","September","Október","November","December"];
+
+const TYPY = {
+  zaloha:  { label: "💰 Záloha",  cls: "zaloha"  },
+  vyplata: { label: "💵 Výplata", cls: "vyplata" },
+  ukol:    { label: "✅ Úkol",    cls: "ukol"    },
+  ine:     { label: "📌 Iné",     cls: "ine"     }
+};
+
+// ─── Stav ────────────────────────────────────────────────────────────────────
+let zaznamy    = {};   // { "Apríl 2026": [{meno,stavba,datum,suma,typ,poznamka}, ...] }
+let mena       = [];   // zoznam známych mien
+let stavbyList = [];   // zoznam stavíeb zo Sheets
+let aktivnyMesiac = "";
+let suhrnOpen  = false;
+let acIndex    = -1;
+let aktTyp     = "zaloha";
+let aktStavba  = "";
+let filterTyp  = "vsetky";
+
+// ─── Pomocné ─────────────────────────────────────────────────────────────────
+function dnes() {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.${d.getFullYear()}`;
+}
+
+function formatDatum(val) {
+  if (!val) return "";
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(String(val))) return String(val);
+  if (/^\d{4}-\d{2}-\d{2}/.test(String(val))) {
+    const p = String(val).split("T")[0].split("-");
+    return `${p[2]}.${p[1]}.${p[0]}`;
+  }
+  const d = new Date(val);
+  if (!isNaN(d.getTime())) {
+    return `${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.${d.getFullYear()}`;
+  }
+  return String(val);
+}
+function aktMesiac() {
+  const d = new Date();
+  return `${MESICE[d.getMonth()]} ${d.getFullYear()}`;
+}
+function parseMesiac(s) {
+  const parts = (s || "").split(" ");
+  if (parts.length < 2) return 0;
+  return parseInt(parts[1]) * 100 + MESICE.indexOf(parts[0]);
+}
+
+// ─── LocalStorage cache ───────────────────────────────────────────────────────
+function uloz() {
+  try {
+    localStorage.setItem("hsas_zalohy_v2_data",  JSON.stringify(zaznamy));
+    localStorage.setItem("hsas_zalohy_v2_mena",  JSON.stringify(mena));
+    localStorage.setItem("hsas_zalohy_v2_stavby", JSON.stringify(stavbyList));
+  } catch(e) {}
+}
+function nacitajCache() {
+  try { zaznamy    = JSON.parse(localStorage.getItem("hsas_zalohy_v2_data"))  || {}; } catch { zaznamy = {}; }
+  try { mena       = JSON.parse(localStorage.getItem("hsas_zalohy_v2_mena"))  || []; } catch { mena = []; }
+  try { stavbyList = JSON.parse(localStorage.getItem("hsas_zalohy_v2_stavby"))|| []; } catch { stavbyList = []; }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+function init() {
+  nacitajCache();
+  document.getElementById("dnes-label").textContent = dnes();
+  aktivnyMesiac = aktMesiac();
+  document.getElementById("mesiac-label").textContent = aktivnyMesiac;
+  naplnSelect();
+  renderVolby();
+  renderSuhrn();
+  renderTabulka();
+
+  document.getElementById("inp-meno").addEventListener("input",   handleMenoInput);
+  document.getElementById("inp-meno").addEventListener("keydown",  handleMenoKey);
+  document.getElementById("inp-suma").addEventListener("keydown",  e => e.key === "Enter" && pridaj());
+  document.getElementById("inp-poznamka").addEventListener("keydown", e => e.key === "Enter" && pridaj());
+  document.addEventListener("click", e => { if (!e.target.closest(".meno-wrap")) hideAC(); });
+
+  loadFromSheets();
+}
+
+// ─── Načítanie zo Sheets (JSONP) ──────────────────────────────────────────────
+function loadFromSheets() {
+  const status = document.getElementById("sync-status");
+  const btn    = document.getElementById("btn-load");
+  if (btn) { btn.innerHTML = '<span class="spinner"></span> Načítavam...'; btn.disabled = true; }
+  status.innerHTML = '<span class="spinner"></span> Načítavam dáta zo Sheets...';
+
+  const callbackName = "sheetsCallback_" + Date.now();
+  const script = document.createElement("script");
+
+  window[callbackName] = function(data) {
+    script.remove();
+    delete window[callbackName];
+    if (btn) { btn.textContent = "📥 Načítať"; btn.disabled = false; }
+
+    if (!data) {
+      status.textContent = "⚠️ Žiadna odpoveď zo Sheets";
+      setTimeout(() => status.textContent = "", 4000);
+      return;
+    }
+
+    // Spracovanie stavby
+    if (data.stavby && data.stavby.length > 0) {
+      stavbyList = _extractStavbyNames(data.stavby);
+    }
+
+    // Spracovanie rows → zaznamy
+    if (data.rows && data.rows.length > 0) {
+      const noweZaznamy = _rowsToZaznamy(data.rows);
+      if (Object.keys(noweZaznamy).length > 0) {
+        zaznamy = noweZaznamy;
+        // Zozbieraj mená
+        const allMena = new Set(mena);
+        data.rows.forEach(r => { const m = r.meno || r.Meno || ""; if (m) allMena.add(m); });
+        mena = Array.from(allMena).sort();
+      }
+    }
+
+    // Ak máme mesiace, aktualizuj select
+    if (data.mesiace && data.mesiace.length > 0) {
+      data.mesiace.forEach(m => { if (!zaznamy[m]) zaznamy[m] = []; });
+    }
+
+    uloz();
+    naplnSelect();
+    renderVolby();
+    renderSuhrn();
+    renderTabulka();
+
+    const pocet = Object.values(zaznamy).flat().length;
+    status.textContent = `✅ Načítané zo Sheets (${pocet} záznamov, ${stavbyList.length} stavieb)`;
+    setTimeout(() => status.textContent = "", 5000);
+  };
+
+  script.onerror = function() {
+    script.remove();
+    delete window[callbackName];
+    if (btn) { btn.textContent = "📥 Načítať"; btn.disabled = false; }
+    status.textContent = "⚠️ Sheets nedostupné – pracujem offline";
+    setTimeout(() => status.textContent = "", 5000);
+  };
+
+  script.src = SHEETS_URL + "?action=getAll&callback=" + callbackName + "&t=" + Date.now();
+  document.head.appendChild(script);
+}
+
+// Konverzia flat rows na { mesiac: [záznamy] }
+function _rowsToZaznamy(rows) {
+  const result = {};
+  rows.forEach(function(r) {
+    // mesiac môže byť pole 'mesiac' alebo 'Mesiac', alebo nič → použijeme aktMesiac
+    const mesiac = r.mesiac || r.Mesiac || aktMesiac();
+    if (!result[mesiac]) result[mesiac] = [];
+    result[mesiac].push({
+      meno:     r.meno     || r.Meno     || "",
+      stavba:   r.stavba   || r.Stavba   || "",
+      datum:    formatDatum(r.datum || r.Dátum || r["D\u00e1tum"] || ""),
+      suma:     parseFloat(r.suma || r.Suma || 0),
+      typ:      (r.typ     || r.Typ      || "zaloha").toLowerCase(),
+      poznamka: r.poznamka || r.Poznámka || r["Pozn\u00e1mka"] || ""
+    });
+  });
+  return result;
+}
+
+// Extrahovanie názvov stavieb z rôznych formátov
+function _extractStavbyNames(arr) {
+  if (!arr || !arr.length) return [];
+  if (typeof arr[0] === "string") return arr.filter(Boolean);
+  return arr.map(function(s) {
+    return s.nazov || s.Názov || s["N\u00e1zov"] || s.kod || s.Kód || Object.values(s)[0] || "";
+  }).filter(Boolean);
+}
+
+// ─── Typ platby ───────────────────────────────────────────────────────────────
+function vyberTyp(typ) {
+  aktTyp = typ;
+  ["zaloha","vyplata","ukol","ine"].forEach(t => {
+    document.getElementById("typ-" + t).className = "typ-btn" + (t === typ ? " active-" + t : "");
+  });
+}
+
+function vyberFilterTyp(typ, el) {
+  filterTyp = typ;
+  document.querySelectorAll(".filter-typ-btn").forEach(b => b.classList.remove("active"));
+  el.classList.add("active");
+  renderTabulka();
+}
+
+// ─── Stavba volby ─────────────────────────────────────────────────────────────
+function renderVolby() {
+  const sg = document.getElementById("stavba-group");
+  if (stavbyList.length) {
+    sg.innerHTML = stavbyList.map(s =>
+      `<button type="button" class="volba-btn${aktStavba === s ? " active" : ""}" onclick="vyberStavbu('${s.replace(/'/g,"\\'")}',this)">${s}</button>`
+    ).join("");
+  } else {
+    sg.innerHTML = '<span style="font-size:0.78rem;color:rgba(255,255,255,0.2);">Žiadne stavby</span>';
+  }
+}
+
+function vyberStavbu(s, el) {
+  aktStavba = aktStavba === s ? "" : s;
+  document.querySelectorAll("#stavba-group .volba-btn").forEach(b => b.classList.remove("active"));
+  if (aktStavba) el.classList.add("active");
+}
+
+// ─── Select mesiac ────────────────────────────────────────────────────────────
+function naplnSelect() {
+  const teraz   = aktMesiac();
+  const sel     = document.getElementById("sel-mesiac");
+  const mesiace = Object.keys(zaznamy).sort((a, b) => parseMesiac(b) - parseMesiac(a));
+  if (!mesiace.includes(teraz)) mesiace.unshift(teraz);
+  sel.innerHTML = mesiace.map(m =>
+    `<option value="${m}"${m === aktivnyMesiac ? " selected" : ""}>${m}</option>`
+  ).join("");
+}
+
+function zmenMesiac() {
+  aktivnyMesiac = document.getElementById("sel-mesiac").value;
+  document.getElementById("mesiac-label").textContent = aktivnyMesiac;
+  document.getElementById("inp-filter").value = "";
+  document.getElementById("clear-filter").classList.add("hidden");
+  renderSuhrn();
+  renderTabulka();
+}
+
+// ─── Súhrn ────────────────────────────────────────────────────────────────────
+function renderSuhrn() {
+  const zoznam = zaznamy[aktivnyMesiac] || [];
+  const card   = document.getElementById("suhrn-card");
+  if (!zoznam.length) { card.classList.add("hidden"); return; }
+  card.classList.remove("hidden");
+  const suhrn = {};
+  zoznam.forEach(z => {
+    if (!suhrn[z.meno]) suhrn[z.meno] = { pocet: 0, suma: 0 };
+    suhrn[z.meno].pocet++;
+    suhrn[z.meno].suma += parseFloat(z.suma || 0);
+  });
+  const arr  = Object.entries(suhrn).sort((a, b) => b[1].suma - a[1].suma);
+  const celk = zoznam.reduce((s, z) => s + parseFloat(z.suma || 0), 0);
+  document.getElementById("suhrn-body").innerHTML =
+    arr.map(([m, d]) =>
+      `<div class="suhrn-item">
+        <div><div class="name">${m}</div><div class="count">${d.pocet}× platba</div></div>
+        <div class="amt">${d.suma.toFixed(2)} €</div>
+      </div>`
+    ).join("") +
+    `<div class="suhrn-total">CELKOVÁ SUMA <span>${celk.toFixed(2)} €</span></div>`;
+}
+
+function toggleSuhrn() {
+  suhrnOpen = !suhrnOpen;
+  document.getElementById("suhrn-body").classList.toggle("hidden", !suhrnOpen);
+  document.getElementById("suhrn-toggle-lbl").textContent = suhrnOpen ? "▲ skryť" : "▼ zobraziť";
+}
+
+// ─── Tabuľka ──────────────────────────────────────────────────────────────────
+function renderTabulka() {
+  const filter = document.getElementById("inp-filter").value.trim().toLowerCase();
+  document.getElementById("clear-filter").classList.toggle("hidden", !filter);
+  const vsetky  = zaznamy[aktivnyMesiac] || [];
+  let   zoznam  = filter ? vsetky.filter(z => z.meno.toLowerCase().includes(filter)) : vsetky;
+  if (filterTyp !== "vsetky") zoznam = zoznam.filter(z => (z.typ || "zaloha") === filterTyp);
+  const celk = zoznam.reduce((s, z) => s + parseFloat(z.suma || 0), 0);
+  document.getElementById("total-lbl").textContent = celk.toFixed(2) + " €";
+  document.getElementById("tf-suma").textContent   = celk.toFixed(2) + " €";
+  const filterMeno = document.getElementById("inp-filter").value.trim();
+  document.getElementById("tf-label").textContent  = filterMeno ? `SUMA — ${filterMeno}` : "CELKOVÁ SUMA";
+  if (!zoznam.length) {
+    document.getElementById("empty-msg").classList.remove("hidden");
+    document.getElementById("tabulka").classList.add("hidden");
+    document.getElementById("empty-msg").textContent = filterMeno
+      ? `Žiadne záznamy pre „${filterMeno}"`
+      : `Žiadne zálohy pre ${aktivnyMesiac}`;
+    return;
+  }
+  document.getElementById("empty-msg").classList.add("hidden");
+  document.getElementById("tabulka").classList.remove("hidden");
+  document.getElementById("tbody").innerHTML = zoznam.map(z => {
+    const globalIdx = vsetky.indexOf(z);
+    const t = TYPY[z.typ || "zaloha"] || TYPY.ine;
+    return `<tr>
+      <td class="td-name">${_esc(z.meno)}</td>
+      <td class="td-date">${_esc(formatDatum(z.datum))}</td>
+      <td class="td-suma">${parseFloat(z.suma || 0).toFixed(2)} €</td>
+      <td><span class="badge badge-${t.cls}">${t.label}</span></td>
+      <td class="td-note">${_esc(z.stavba || "—")}</td>
+      <td class="td-note">${_esc(z.poznamka || "—")}</td>
+      <td><button class="del-btn" onclick="vymaz(${globalIdx})" title="Vymazať">✕</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function _esc(s) {
+  return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ─── Pridaj ───────────────────────────────────────────────────────────────────
+function pridaj() {
+  const meno     = document.getElementById("inp-meno").value.trim();
+  const suma     = document.getElementById("inp-suma").value.trim();
+  const poznamka = document.getElementById("inp-poznamka").value.trim();
+  if (!meno)     { showFlash("⚠️ Vyplň meno zamestnanca", false); document.getElementById("inp-meno").focus(); return; }
+  if (!suma || isNaN(parseFloat(suma.replace(",", "."))))
+                 { showFlash("⚠️ Vyplň sumu", false); document.getElementById("inp-suma").focus(); return; }
+
+  const teraz    = aktMesiac();
+  const zaznam   = {
+    id:       "z-" + Date.now() + "-" + Math.random().toString(36).slice(2,6),
+    meno,
+    stavba:   aktStavba,
+    datum:    dnes(),
+    suma:     parseFloat(suma.replace(",", ".")),
+    poznamka,
+    typ:      aktTyp
+  };
+
+  if (!zaznamy[teraz]) zaznamy[teraz] = [];
+  zaznamy[teraz].push(zaznam);
+  if (!mena.includes(meno)) { mena.push(meno); mena.sort(); }
+  uloz();
+
+  posliDoSheets(zaznam, teraz);
+
+  // Reset formulára
+  document.getElementById("inp-meno").value     = "";
+  document.getElementById("inp-suma").value     = "";
+  document.getElementById("inp-poznamka").value = "";
+  vyberTyp("zaloha");
+  aktStavba = "";
+  document.querySelectorAll(".volba-btn").forEach(b => b.classList.remove("active"));
+  hideAC();
+
+  aktivnyMesiac = teraz;
+  naplnSelect();
+  renderSuhrn();
+  renderTabulka();
+  showFlash("✅ Záloha pridaná a odoslaná do Sheets", true);
+  document.getElementById("inp-meno").focus();
+}
+
+function vymaz(idx) {
+  if (!confirm("Vymazať tento záznam?")) return;
+  const zaznam = zaznamy[aktivnyMesiac][idx];
+  zaznamy[aktivnyMesiac].splice(idx, 1);
+  uloz();
+  renderSuhrn();
+  renderTabulka();
+  if (zaznam) vymazZSheets(zaznam, aktivnyMesiac);
+}
+
+function vymazZSheets(zaznam, mesiac) {
+  fetch(SHEETS_URL, {
+    method:  "POST",
+    mode:    "no-cors",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action:   "delete",
+      id:       zaznam.id   || "",
+      meno:     zaznam.meno || "",
+      datum:    zaznam.datum|| "",
+      suma:     zaznam.suma || 0,
+      mesiac
+    })
+  }).catch(err => console.warn("Sheets delete error:", err));
+}
+
+function showFlash(msg, ok) {
+  const el = document.getElementById("flash");
+  el.textContent = msg;
+  el.className   = "flash " + (ok ? "ok" : "err");
+  el.classList.remove("hidden");
+  setTimeout(() => el.classList.add("hidden"), 3000);
+}
+
+function clearFilter() {
+  document.getElementById("inp-filter").value = "";
+  document.getElementById("clear-filter").classList.add("hidden");
+  renderTabulka();
+}
+
+// ─── Autocomplete ─────────────────────────────────────────────────────────────
+function handleMenoInput() {
+  const val = document.getElementById("inp-meno").value;
+  acIndex = -1;
+  if (!val) { hideAC(); return; }
+  const filtered = mena.filter(m => m.toLowerCase().startsWith(val.toLowerCase()));
+  if (!filtered.length) { hideAC(); return; }
+  const ac = document.getElementById("autocomplete");
+  ac.innerHTML = filtered.map(m => `<div class="ac-item" onclick="vyberAC('${_esc(m)}')">${_esc(m)}</div>`).join("");
+  ac.classList.remove("hidden");
+}
+function handleMenoKey(e) {
+  const ac    = document.getElementById("autocomplete");
+  const items = ac.querySelectorAll(".ac-item");
+  if (!items.length) return;
+  if      (e.key === "ArrowDown")               { e.preventDefault(); acIndex = Math.min(acIndex + 1, items.length - 1); highlightAC(items); }
+  else if (e.key === "ArrowUp")                 { e.preventDefault(); acIndex = Math.max(acIndex - 1, 0); highlightAC(items); }
+  else if (e.key === "Enter" && acIndex >= 0)   { e.preventDefault(); vyberAC(items[acIndex].textContent); }
+  else if (e.key === "Escape")                  { hideAC(); }
+}
+function highlightAC(items) { items.forEach((el, i) => el.classList.toggle("active", i === acIndex)); }
+function vyberAC(m) { document.getElementById("inp-meno").value = m; hideAC(); document.getElementById("inp-suma").focus(); }
+function hideAC()   { document.getElementById("autocomplete").classList.add("hidden"); acIndex = -1; }
+
+// ─── Odoslanie do Sheets (fire-and-forget) ────────────────────────────────────
+function posliDoSheets(zaznam, mesiac) {
+  fetch(SHEETS_URL, {
+    method:  "POST",
+    mode:    "no-cors",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action:   "pridaj",
+      id:       zaznam.id,
+      meno:     zaznam.meno,
+      stavba:   zaznam.stavba   || "",
+      datum:    zaznam.datum,
+      suma:     zaznam.suma,
+      poznamka: zaznam.poznamka || "",
+      typ:      zaznam.typ      || "zaloha",
+      mesiac
+    })
+  }).catch(err => console.warn("Sheets sync error:", err));
+}
+
+// ─── CSV export ───────────────────────────────────────────────────────────────
+function exportCSV() {
+  const zoznam = zaznamy[aktivnyMesiac] || [];
+  const celk   = zoznam.reduce((s, z) => s + parseFloat(z.suma || 0), 0);
+  const riadky = [
+    ["Meno","Stavba","Dátum","Suma (€)","Typ","Poznámka"],
+    ...zoznam.map(z => [z.meno, z.stavba || "", z.datum, z.suma, TYPY[z.typ || "zaloha"].label, z.poznamka || ""]),
+    [],
+    ["CELKOVÁ SUMA","","","",celk.toFixed(2),""]
+  ];
+  const csv = riadky.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  document.getElementById("csv-area").value = csv;
+  document.getElementById("csv-modal").classList.remove("hidden");
+}
+function zavriModal() { document.getElementById("csv-modal").classList.add("hidden"); }
+function skopiruj() {
+  const ta  = document.getElementById("csv-area");
+  const btn = document.getElementById("btn-copy");
+  navigator.clipboard.writeText(ta.value).then(() => {
+    btn.textContent = "✅ Skopírované!"; btn.classList.add("ok");
+    setTimeout(() => { btn.textContent = "📋 Kopírovať do schránky"; btn.classList.remove("ok"); }, 2500);
+  }).catch(() => { ta.select(); document.execCommand("copy"); });
+}
+
+// ─── Spustenie ────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
