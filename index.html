@@ -645,7 +645,7 @@ function posliDoSheets(zaznam, mesiac) {
       id:       zaznam.id,
       meno:     zaznam.meno,
       stavba:   zaznam.stavba   || "",
-      datum:    zaznam.datum,
+      datum:    formatDatum(zaznam.datum),
       suma:     zaznam.suma,
       poznamka: zaznam.poznamka || "",
       typ:      zaznam.typ      || "zaloha",
